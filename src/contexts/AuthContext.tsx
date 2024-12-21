@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import jwtDecode from 'jwt-decode';
+import jwtDecode from 'jwt-decode'; // Correct import
 
 interface DecodedToken {
   exp?: number; // Expiration time in seconds
@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         try {
           const decodedToken: DecodedToken = jwtDecode(token);
-          const currentTime = Date.now() / 1000; // Current time in seconds
+          const currentTime = Date.now() / 1000;
           if (decodedToken.exp && decodedToken.exp > currentTime) {
             setIsAuthenticated(true);
           } else {
