@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ShopFormData } from '../types';
+import axiosInstance from '../config/axios.ts';
 
 interface ShopContextType {
   shops: ShopFormData[];
@@ -32,37 +33,26 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-    
   const fetchShops = async (slug?: string): Promise<ShopFormData[] | ShopFormData | null> => {
     try {
-      // Avoid re-fetching shops if they are already loaded
       if (!slug && shops.length > 0) {
-        console.log('Shops already fetched, returning existing data.');
-        return shops; // Return the existing shops data
+        return shops;
       }
-  
-      const endpoint = slug ? `/api/shops/${slug}` : `/api/shops`;
-      const response = await fetch(endpoint);
-  
-      if (!response.ok) throw new Error('Failed to fetch shop data');
-  
-      const data = await response.json();
-  
+
+      const endpoint = slug ? `/shops/${slug}` : '/shops';
+      const response = await axiosInstance.get(endpoint);
+
       if (slug) {
-        return data as ShopFormData; // Single shop
+        return response.data as ShopFormData;
       } else {
-        setShops(data as ShopFormData[]); // Update the global shops state
-        return data as ShopFormData[];
+        setShops(response.data as ShopFormData[]);
+        return response.data as ShopFormData[];
       }
     } catch (error) {
       console.error('Error fetching shops:', error);
       return null;
     }
   };
-  
-  
-  
-  
 
   useEffect(() => {
     fetchShops();
@@ -75,28 +65,15 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const createShop = async (shopData: ShopFormData) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/shops', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(shopData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create shop');
-      }
-
-      const createdShop = await response.json();
+      const response = await axiosInstance.post('/shops', shopData);
+      const createdShop = response.data;
       setShops((prevShops) => [...prevShops, createdShop]);
       return createdShop;
     } catch (err) {
-      console.error('Error creating shop:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create shop');
-      throw err; // Re-throw the error so the component can handle it
+      const error = err as Error;
+      console.error('Error creating shop:', error);
+      setError(error.message || 'Failed to create shop');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -105,27 +82,15 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const updateShop = async (id: string, shopData: ShopFormData) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/shops/id/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(shopData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update shop');
-      }
-
+      await axiosInstance.put(`/shops/id/${id}`, shopData);
       setShops((prevShops) =>
         prevShops.map((shop) => (shop._id === id ? { ...shop, ...shopData } : shop))
       );
     } catch (err) {
-      console.error('Error updating shop:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update shop');
+      const error = err as Error;
+      console.error('Error updating shop:', error);
+      setError(error.message || 'Failed to update shop');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -134,48 +99,27 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const deleteShop = async (id: string) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/shops/id/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete shop');
-      }
-
+      await axiosInstance.delete(`/shops/id/${id}`);
       setShops((prevShops) => prevShops.filter((shop) => shop._id !== id));
     } catch (err) {
-      console.error('Error deleting shop:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete shop');
+      const error = err as Error;
+      console.error('Error deleting shop:', error);
+      setError(error.message || 'Failed to delete shop');
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
   const getShopBySlug = (name: string): ShopFormData | undefined => {
-    console.log('Shops after API call:', shops);
-
     const normalizedSlug = name
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
   
-    console.log('Looking for shop with slug:', normalizedSlug);
-  
-    const matchedShop = shops.find(shop => {
-      console.log('Checking shop slug:', shop.slug);
-      return shop.slug === normalizedSlug;
-    });
-  
-    console.log('Matched Shop:', matchedShop);
-    return matchedShop;
+    return shops.find(shop => shop.slug === normalizedSlug);
   };
-  
 
   const value = {
     shops,
