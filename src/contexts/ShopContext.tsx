@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ShopFormData } from '../types';
-import axiosInstance from '../config/axios.ts';
+import axiosInstance from '../config/axios';
 
 interface ShopContextType {
   shops: ShopFormData[];
@@ -10,8 +10,9 @@ interface ShopContextType {
   createShop: (data: ShopFormData) => Promise<ShopFormData>;
   updateShop: (id: string, data: ShopFormData) => Promise<void>;
   deleteShop: (id: string) => Promise<void>;
-  getShopBySlug: (name: string) => ShopFormData | undefined;
-  fetchShops: (slug: string) => Promise<ShopFormData | null>;
+  getShopBySlug: (slug: string) => ShopFormData | undefined;
+  fetchShops: () => Promise<void>;
+  fetchShopBySlug: (slug: string) => Promise<ShopFormData | null>;
 }
 
 const defaultContextValue: ShopContextType = {
@@ -20,10 +21,11 @@ const defaultContextValue: ShopContextType = {
   error: null,
   getShopById: () => undefined,
   createShop: async () => { throw new Error('Not implemented'); },
-  updateShop: async () => {},
-  deleteShop: async () => {},
+  updateShop: async () => { },
+  deleteShop: async () => { },
   getShopBySlug: () => undefined,
-  fetchShops: async () => null,
+  fetchShops: async () => { },
+  fetchShopBySlug: async () => null,
 };
 
 const ShopContext = createContext<ShopContextType>(defaultContextValue);
@@ -33,24 +35,32 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchShops = async (slug?: string): Promise<ShopFormData[] | ShopFormData | null> => {
+  const fetchShops = async () => {
     try {
-      if (!slug && shops.length > 0) {
-        return shops;
-      }
-
-      const endpoint = slug ? `/shops/${slug}` : '/shops';
-      const response = await axiosInstance.get(endpoint);
-
-      if (slug) {
-        return response.data as ShopFormData;
-      } else {
-        setShops(response.data as ShopFormData[]);
-        return response.data as ShopFormData[];
-      }
-    } catch (error) {
+      setLoading(true);
+      const response = await axiosInstance.get('/shops');
+      setShops(response.data);
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || 'Failed to fetch shops');
       console.error('Error fetching shops:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchShopBySlug = async (slug: string): Promise<ShopFormData | null> => {
+    try {
+      setLoading(true);
+      const response = await axiosInstance.get(`/shops/${slug}`);
+      return response.data;
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || 'Failed to fetch shop');
+      console.error('Error fetching shop by slug:', error);
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,16 +72,15 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     return shops.find(shop => shop._id === id);
   };
 
-  const createShop = async (shopData: ShopFormData) => {
+  const createShop = async (shopData: ShopFormData): Promise<ShopFormData> => {
     try {
       setLoading(true);
       const response = await axiosInstance.post('/shops', shopData);
       const createdShop = response.data;
-      setShops((prevShops) => [...prevShops, createdShop]);
+      setShops(prevShops => [...prevShops, createdShop]);
       return createdShop;
     } catch (err) {
       const error = err as Error;
-      console.error('Error creating shop:', error);
       setError(error.message || 'Failed to create shop');
       throw error;
     } finally {
@@ -82,13 +91,12 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const updateShop = async (id: string, shopData: ShopFormData) => {
     try {
       setLoading(true);
-      await axiosInstance.put(`/shops/id/${id}`, shopData);
-      setShops((prevShops) =>
-        prevShops.map((shop) => (shop._id === id ? { ...shop, ...shopData } : shop))
+      const response = await axiosInstance.put(`/shops/id/${id}`, shopData);
+      setShops(prevShops =>
+        prevShops.map(shop => (shop._id === id ? { ...shop, ...response.data } : shop))
       );
     } catch (err) {
       const error = err as Error;
-      console.error('Error updating shop:', error);
       setError(error.message || 'Failed to update shop');
       throw error;
     } finally {
@@ -100,10 +108,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       await axiosInstance.delete(`/shops/id/${id}`);
-      setShops((prevShops) => prevShops.filter((shop) => shop._id !== id));
+      setShops(prevShops => prevShops.filter(shop => shop._id !== id));
     } catch (err) {
       const error = err as Error;
-      console.error('Error deleting shop:', error);
       setError(error.message || 'Failed to delete shop');
       throw error;
     } finally {
@@ -111,14 +118,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getShopBySlug = (name: string): ShopFormData | undefined => {
-    const normalizedSlug = name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  
-    return shops.find(shop => shop.slug === normalizedSlug);
+  const getShopBySlug = (slug: string): ShopFormData | undefined => {
+    return shops.find(shop => shop.slug === slug);
   };
 
   const value = {
@@ -131,6 +132,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     deleteShop,
     getShopBySlug,
     fetchShops,
+    fetchShopBySlug,
   };
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
