@@ -47,11 +47,11 @@ function ShopPage() {
   const shop = shopName ? getShopBySlug(shopName) : undefined;
 
   // Debugging logs
-  useEffect(() => {
-    console.log('Shops:', shops);
-    console.log('Shop Name:', shopName);
-    console.log('Fetched Shop:', shop);
-  }, [shops, shopName, shop]);
+  // useEffect(() => {
+  //   console.log('Shops:', shops);
+  //   console.log('Shop Name:', shopName);
+  //   console.log('Fetched Shop:', shop);
+  // }, [shops, shopName, shop]);
 
   // If still loading, show a loader
   if (loading) {
