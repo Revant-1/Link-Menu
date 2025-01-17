@@ -30,11 +30,11 @@ export function Hero() {
             className="relative"
           >
          <div className="relative z-10">
-  {/* <iframe
+  <iframe
     src="https://qwickmenu.site/demo"
     title="Menu Preview"
     className="mx-auto w-full h-[600px] rounded-3xl shadow-2xl"
-  ></iframe> */}
+  ></iframe>
   <motion.div
     animate={{
       y: [0, -10, 0],
